@@ -1,29 +1,23 @@
 import pygame
+from random import randint
 from find_cell import finder
 from random import randint
-from image_load import load_image
-from find_cell import finder
-from random import randint
+from actor import Actor
+from bullet import Bullet
+import datetime
 
 
-class Enemy(pygame.sprite.Sprite):
+class Enemy(Actor):
     routes = []
     var = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 
-    def __init__(self, player, width, height, tile_size, field, group):
-        super().__init__(group)
+    def __init__(self, field, walls, width, height, tile_size, player, bullet_group, sprite_group):
+        super().__init__(f'enemy{randint(1, 4)}.png', 240, 66, 1, 1, walls, width, height, bullet_group, sprite_group)
         self.x, self.y = 240, 66  # spawns[randint(1, 3)]
-        self.image_name = f'enemy{randint(1, 4)}.png'
-        self.image = load_image(self.image_name)
-        self.rect = self.image.get_rect().move(self.x, self.y)
-        self.vel = 1
-        self.width = width
-        self.height = height
         self.tile_size = tile_size
         self.player = player
         self.field = field
-        self.direct = (-1, 0)
-        self.turns = []
+        self.last_shoot = datetime.datetime.now()
 
     def points(self, x, y):
         res = []
@@ -31,8 +25,6 @@ class Enemy(pygame.sprite.Sprite):
             x1 = x + i[0]
             y1 = y + i[1]
             if 0 <= x1 < self.width and 0 <= y1 < self.height:
-                if y1 == 3 and x1 == 7:
-                    print()
                 if self.field[y1][x1] != '#':
                     res.append((x1, y1))
         return res
@@ -52,20 +44,30 @@ class Enemy(pygame.sprite.Sprite):
                 if len(self.routes) > 0:
                     return
 
-    def rotate_image(self, dir_x, dir_y):
-        rot = 0
-        if dir_x == 1:
-            rot = 180
-        elif dir_y == 1:
-            rot = 90
-        elif dir_y == -1:
-            rot = 270
-        self.rotate(rot)
+    def can_shoot(self):
+        player_pos = finder(self.player, self.width, self.height, self.tile_size)
+        self_pos = finder(self, self.width, self.height, self.tile_size)
+        if player_pos[0] == self_pos[0] or player_pos[1] == self_pos[1]:
+            while 0 < self_pos[0] < self.width and 0 < self_pos[1] < self.height and \
+                    self.field[self_pos[1]][self_pos[0]] != '#':
+                self_pos = (self_pos[0] + int(self.dir[0]), self_pos[1] + int(self.dir[1]))
+                if self_pos == player_pos and datetime.datetime.now() - self.last_shoot > datetime.timedelta(seconds=1):
+                    self.last_shoot = datetime.datetime.now()
+                    self.shoot()
+                    break
 
-    def rotate(self, angle):
-        self.image = pygame.transform.rotate(load_image(self.image_name), angle)
-        center = self.rect.center
-        self.rect = self.image.get_rect()
-        self.rect.center = center
+    def change_dir(self):
+        self.can_shoot()
+        self_pos = finder(self.player, self.width, self.height, self.tile_size)
+        player_pos = finder(self, self.width, self.height, self.tile_size)
+        diff_x, diff_y = abs(player_pos[0] - self_pos[0]), abs(player_pos[1] - self_pos[1])
+        if diff_y == diff_x == 0:
+            self.dir = (0, 0)
+        elif diff_x < diff_y:
+            self.dir = (0, (self_pos[1] - player_pos[1]) // diff_y)
+        elif diff_x >= diff_y:
+            self.dir = ((self_pos[0] - player_pos[0]) / diff_x, 0)
+
+
 
 
