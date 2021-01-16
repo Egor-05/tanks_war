@@ -7,7 +7,6 @@ import enemy
 
 
 FPS = 60
-WIDTH = HEIGHT = 500
 
 
 def generate_level(level):
@@ -20,7 +19,8 @@ def generate_level(level):
                 walls_group.add(Tile('wall', x, y))
             elif level[y][x] == '@':
                 Tile('empty', x, y)
-                new_player = Character(player_group, x * tile_size, y * tile_size, width, height, walls_group, bullets_group)
+                new_player = Character(player_group, x * tile_size, y * tile_size,
+                                       ind, width, height, walls_group, bullets_group, targets_group)
     new_player.walls = walls_group
     return new_player
 
@@ -30,7 +30,7 @@ class Tile(pygame.sprite.Sprite):
         super().__init__(tiles_group)
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(
-            tile_size * pos_x, tile_size * pos_y)
+            tile_size * pos_x + ind, tile_size * pos_y)
 
 
 def terminate():
@@ -49,45 +49,48 @@ def load_level(filename):
     level_map = level_tiles(filename)
     max_width = max(map(len, level_map))
     return list(map(lambda x: x.ljust(max_width, '.'), level_map))
-#
-#
-# def start_screen():
-#     intro_text = ["ЗАСТАВКА", "",
-#                   "Правила игры",
-#                   "Если в правилах несколько строк,",
-#                   "приходится выводить их построчно"]
-#
-#     fon = pygame.transform.scale(load_image('fon.jpeg'), (WIDTH, HEIGHT))
-#     screen.blit(fon, (0, 0))
-#     font = pygame.font.Font(None, 30)
-#     text_coord = 50
-#     for line in intro_text:
-#         string_rendered = font.render(line, True, pygame.Color('black'))
-#         intro_rect = string_rendered.get_rect()
-#         text_coord += 10
-#         intro_rect.top = text_coord
-#         intro_rect.x = 10
-#         text_coord += intro_rect.height
-#         screen.blit(string_rendered, intro_rect)
-#
-#     while True:
-#         for event in pygame.event.get():
-#             if event.type == pygame.QUIT:
-#                 terminate()
-#             elif event.type == pygame.KEYDOWN or \
-#                     event.type == pygame.MOUSEBUTTONDOWN:
-#                 return  # начинаем игру
-#         pygame.display.flip()
-#         clock.tick(FPS)
+
+
+def start_screen():
+    intro_text = ["ЗАСТАВКА", "",
+                  "Правила игры:",
+                  "Управление - стрелки, стрельба - пробел.",
+                  "Задача игры - выживать в течение определенного количества времени."]
+
+    fon = pygame.transform.scale(load_image('fon.jpeg'), (width, height))
+    screen.blit(fon, (0, 0))
+    font = pygame.font.Font(None, 30)
+    text_coord = 50
+    for line in intro_text:
+        string_rendered = font.render(line, True, pygame.Color('black'))
+        intro_rect = string_rendered.get_rect()
+        text_coord += 10
+        intro_rect.top = text_coord
+        intro_rect.x = 10
+        text_coord += intro_rect.height
+        screen.blit(string_rendered, intro_rect)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                return  # начинаем игру
+        pygame.display.flip()
+        clock.tick(FPS)
 
 
 if __name__ == '__main__':
     pygame.init()
     tile_size = 30
     field = 'map1.txt'
-    size = width, height = (len([i for i in level_tiles(field)[0]]) * tile_size,
-                            len(level_tiles(field)) * tile_size)
+    height = len(level_tiles(field)) * tile_size
+    width = len([i for i in level_tiles(field)[0]]) * tile_size
+    ind = 150
+    width += ind * 2
 
+    size = width, height
     fps = 60
     screen = pygame.display.set_mode(size)
     pygame.display.set_caption('Крест')
@@ -98,6 +101,7 @@ if __name__ == '__main__':
     }
 
     player = None
+    targets_group = pygame.sprite.Group()
     walls_group = pygame.sprite.Group()
     tiles_group = pygame.sprite.Group()
     player_group = pygame.sprite.Group()
@@ -107,7 +111,10 @@ if __name__ == '__main__':
 
     clock = pygame.time.Clock()
     player = generate_level(load_level(field))
-    enemy.Enemy(level_tiles(field), walls_group, width, height, tile_size, player, bullets_group, enemy_group)
+    targets_group.add(enemy.Enemy(level_tiles(field), ind, walls_group, width,
+                                  height, tile_size, player, bullets_group, enemy_group, targets_group))
+    targets_group.add(player)
+
     # start_screen()
     tiles_group.draw(screen)
     player_group.draw(screen)
@@ -136,6 +143,10 @@ if __name__ == '__main__':
                         player.dir = (0, -1)
                     elif event.key == pygame.K_DOWN:
                         player.dir = (0, 1)
+                    for i in range(player.hp):
+                        hp = pygame.image.load('data/hp.png')
+                        hp_rect = hp.get_rect().move(width - ind + 40 * i + 20, 10)
+                        screen.blit(hp, hp_rect)
                     tiles_group.draw(screen)
                     player.update()
                     player_group.draw(screen)
@@ -147,7 +158,10 @@ if __name__ == '__main__':
                     clock.tick(FPS)
                     pygame.display.flip()
                     screen.fill('black')
-
+        for i in range(player.hp):
+            hp = pygame.image.load('data/hp.png')
+            hp_rect = hp.get_rect().move(width - ind + 40 * i + 20, 10)
+            screen.blit(hp, hp_rect)
         tiles_group.draw(screen)
         player_group.draw(screen)
         bullets_group.update()
@@ -156,3 +170,4 @@ if __name__ == '__main__':
         enemy_group.draw(screen)
         clock.tick(FPS)
         pygame.display.flip()
+        screen.fill('black')
