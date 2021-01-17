@@ -14,7 +14,7 @@ class Bullet(pygame.sprite.Sprite):
         self.x, self.y = x, y
         self.dir_x, self.dir_y = dir_x, dir_y
         self.rect = pygame.Rect(x, y, 2 * self.radius, 2 * self.radius)
-        self.vel = 6
+        self.vel = 8
         self.obj = obj
         self.targets_group = targets
         self.width = width

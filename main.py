@@ -1,16 +1,32 @@
-import pygame, sys
-from character import Character
+import pygame
+import sys
+from actor import Actor
 from image_load import load_image
-from bullet import Bullet
-from find_cell import finder
-import enemy
+from enemy import Enemy
+from explosion import AnimatedExplosion
+import datetime
 
 
-FPS = 60
+def end_game(filename):
+    all_sprites = pygame.sprite.Group()
+    sprite = pygame.sprite.Sprite(all_sprites)
+    sprite.image = load_image(filename)
+    sprite.rect = sprite.image.get_rect()
+    sprite.rect.x = -sprite.rect.w
+    while 1:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+        if sprite.rect.x < 0:
+            sprite.rect.x += 200 / fps
+        all_sprites.draw(screen)
+        pygame.display.flip()
+        clock.tick(fps)
 
 
 def generate_level(level):
-    new_player, player_x, player_y = None, None, None
+    new_player = None
+    walls_group = pygame.sprite.Group()
     for y in range(len(level)):
         for x in range(len(level[y])):
             if level[y][x] == '.':
@@ -19,10 +35,9 @@ def generate_level(level):
                 walls_group.add(Tile('wall', x, y))
             elif level[y][x] == '@':
                 Tile('empty', x, y)
-                new_player = Character(player_group, x * tile_size, y * tile_size,
-                                       ind, width, height, walls_group, bullets_group, targets_group)
-    new_player.walls = walls_group
-    return new_player
+                new_player = Actor('character.png', x * tile_size, y * tile_size, 3, 3, ind, walls_group,
+                                   width, height, bullets_group, targets_group)
+    return new_player, walls_group
 
 
 class Tile(pygame.sprite.Sprite):
@@ -31,11 +46,6 @@ class Tile(pygame.sprite.Sprite):
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(
             tile_size * pos_x + ind, tile_size * pos_y)
-
-
-def terminate():
-    pygame.quit()
-    sys.exit()
 
 
 def level_tiles(filename):
@@ -55,14 +65,14 @@ def start_screen():
     intro_text = ["ЗАСТАВКА", "",
                   "Правила игры:",
                   "Управление - стрелки, стрельба - пробел.",
-                  "Задача игры - выживать в течение определенного количества времени."]
+                  "Задача игры - выжить определенное количество времени."]
 
     fon = pygame.transform.scale(load_image('fon.jpeg'), (width, height))
     screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, True, pygame.Color('black'))
+        string_rendered = font.render(line, True, pygame.Color('red'))
         intro_rect = string_rendered.get_rect()
         text_coord += 10
         intro_rect.top = text_coord
@@ -73,25 +83,51 @@ def start_screen():
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                terminate()
+                pygame.quit()
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
-                return  # начинаем игру
+                return
         pygame.display.flip()
-        clock.tick(FPS)
+        clock.tick(fps)
+
+
+def check_win(sec):
+    if time_to_live == sec:
+        return True
+
+
+def print_time(sec):
+    font = pygame.font.Font(None, 20)
+    text = font.render('Осталось ', True, (255, 255, 255))
+    text_x = width - ind + 45
+    text_y = 60
+    screen.blit(text, (text_x, text_y))
+    text = font.render('продержаться:', True, (255, 255, 255))
+    text_x = width - ind + 25
+    text_y = 80
+    screen.blit(text, (text_x, text_y))
+    sec = time_to_live - sec
+    time = f'{str(sec // 60).rjust(2, "0")}:{str(sec % 60).rjust(2, "0")}'
+    font = pygame.font.Font(None, 30)
+    text = font.render(time, True, (255, 255, 255))
+    text_x = width - ind + 50
+    text_y = 100
+    screen.blit(text, (text_x, text_y))
 
 
 if __name__ == '__main__':
     pygame.init()
+    time_to_live = 300
     tile_size = 30
+    exps = []
     field = 'map1.txt'
     height = len(level_tiles(field)) * tile_size
     width = len([i for i in level_tiles(field)[0]]) * tile_size
     ind = 150
     width += ind * 2
-
+    s = 0
     size = width, height
-    fps = 60
+    fps = 30
     screen = pygame.display.set_mode(size)
     pygame.display.set_caption('Крест')
 
@@ -100,25 +136,26 @@ if __name__ == '__main__':
         'empty': load_image('iron_road.png')
     }
 
-    player = None
     targets_group = pygame.sprite.Group()
-    walls_group = pygame.sprite.Group()
     tiles_group = pygame.sprite.Group()
-    player_group = pygame.sprite.Group()
     bullets_group = pygame.sprite.Group()
+    explosion_group = pygame.sprite.Group()
     level_map = level_tiles(field)
-    enemy_group = pygame.sprite.Group()
 
     clock = pygame.time.Clock()
-    player = generate_level(load_level(field))
-    targets_group.add(enemy.Enemy(level_tiles(field), ind, walls_group, width,
-                                  height, tile_size, player, bullets_group, enemy_group, targets_group))
+    player, walls_group = generate_level(level_map)
     targets_group.add(player)
 
-    # start_screen()
-    tiles_group.draw(screen)
-    player_group.draw(screen)
+    KEYS_DEFS = {pygame.K_LEFT: (-1, 0),
+                 pygame.K_RIGHT: (1, 0),
+                 pygame.K_UP: (0, -1),
+                 pygame.K_DOWN: (0, 1)
+                 }
 
+    start_screen()
+    tiles_group.draw(screen)
+    targets_group.draw(screen)
+    last_spawn = datetime.datetime.now()
     pygame.display.flip()
     while 1:
         for event in pygame.event.get():
@@ -127,47 +164,56 @@ if __name__ == '__main__':
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     player.shoot()
-                    break
-                c = True
-                while c:
-                    for i in pygame.event.get():
-                        if i.type == pygame.QUIT:
-                            pygame.quit()
-                        if i.type == pygame.KEYUP:
-                            c = False
-                    if event.key == pygame.K_LEFT:
-                        player.dir = (-1, 0)
-                    elif event.key == pygame.K_RIGHT:
-                        player.dir = (1, 0)
-                    elif event.key == pygame.K_UP:
-                        player.dir = (0, -1)
-                    elif event.key == pygame.K_DOWN:
-                        player.dir = (0, 1)
-                    for i in range(player.hp):
-                        hp = pygame.image.load('data/hp.png')
-                        hp_rect = hp.get_rect().move(width - ind + 40 * i + 20, 10)
-                        screen.blit(hp, hp_rect)
-                    tiles_group.draw(screen)
-                    player.update()
-                    player_group.draw(screen)
-                    bullets_group.update()
-                    bullets_group.draw(screen)
-                    enemy_group.update()
-                    enemy_group.draw(screen)
-
-                    clock.tick(FPS)
-                    pygame.display.flip()
-                    screen.fill('black')
+                elif event.key in KEYS_DEFS.keys():
+                    player.dir = KEYS_DEFS[event.key]
+            elif event.type == pygame.KEYUP:
+                if event.key in KEYS_DEFS.keys():
+                    player.dir = (0, 0)
         for i in range(player.hp):
             hp = pygame.image.load('data/hp.png')
             hp_rect = hp.get_rect().move(width - ind + 40 * i + 20, 10)
             screen.blit(hp, hp_rect)
         tiles_group.draw(screen)
-        player_group.draw(screen)
         bullets_group.update()
         bullets_group.draw(screen)
-        enemy_group.update()
-        enemy_group.draw(screen)
-        clock.tick(FPS)
+        targets_group.update()
+        targets_group.draw(screen)
+        for i in targets_group:
+            if i.hp == 0:
+                AnimatedExplosion(load_image('exp.png'), 4, 2, i.rect.center, explosion_group)
+                player_killed = i == player
+                i.kill()
+                if player_killed:
+                    for j in range(8):
+                        tiles_group.draw(screen)
+                        targets_group.draw(screen)
+                        explosion_group.update()
+                        explosion_group.draw(screen)
+
+                        clock.tick(fps)
+                        pygame.display.flip()
+
+                    end_game('gameover.png')
+
+        explosion_group.update()
+        explosion_group.draw(screen)
+
+        sec = datetime.timedelta(milliseconds=pygame.time.get_ticks()).seconds
+        print_time(sec)
+        if check_win(sec):
+            end_game('win.jpeg')
+
+        if datetime.datetime.now() - last_spawn > datetime.timedelta(seconds=5):
+            last_spawn = datetime.datetime.now()
+            targets_group.add(Enemy(level_tiles(field),
+                                    ind,
+                                    walls_group,
+                                    width,
+                                    height,
+                                    tile_size,
+                                    player,
+                                    bullets_group,
+                                    targets_group))
+        clock.tick(fps)
         pygame.display.flip()
         screen.fill('black')
