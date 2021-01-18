@@ -119,6 +119,7 @@ if __name__ == '__main__':
     pygame.init()
     time_to_live = 300
     tile_size = 30
+    exp_sound = pygame.mixer.Sound('data/expl6.wav')
     exps = []
     field = 'map1.txt'
     height = len(level_tiles(field)) * tile_size
@@ -180,6 +181,7 @@ if __name__ == '__main__':
         targets_group.draw(screen)
         for i in targets_group:
             if i.hp == 0:
+                exp_sound.play()
                 AnimatedExplosion(load_image('exp.png'), 4, 2, i.rect.center, explosion_group)
                 player_killed = i == player
                 i.kill()

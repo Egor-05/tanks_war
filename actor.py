@@ -22,6 +22,7 @@ class Actor(pygame.sprite.Sprite):
         self.height = height
         self.dir = (0, 0)
         self.hp = hp
+        self.shoot_sound = pygame.mixer.Sound('data/shoot.wav')
         self.exp = False
 
     def can_shoot(self):
@@ -73,3 +74,4 @@ class Actor(pygame.sprite.Sprite):
             self.last_shoot = datetime.datetime.now()
             self.bullet_group.add(Bullet(*self.rect.center, *self.look_dir, self.width,
                                          self.height, self.walls, self, self.targets))
+            self.shoot_sound.play()
