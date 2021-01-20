@@ -1,10 +1,55 @@
 import pygame
-import sys
 from actor import Actor
 from image_load import load_image
 from enemy import Enemy
 from explosion import AnimatedExplosion
 import datetime
+import sys
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
+from PyQt5.QtWidgets import QLineEdit, QLabel
+import sqlite3
+
+
+class Example(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+        self.s = 0
+
+    def initUI(self):
+        self.setGeometry(220, 110, 220, 110)
+        self.setWindowTitle('Фокус со словами')
+
+        self.label = QLabel(self)
+        self.label.setText('Введите ваше имя')
+        self.label.resize(150, 20)
+        self.label.move(50, 10)
+
+        self.btn = QPushButton('Ok', self)
+        self.btn.resize(self.btn.sizeHint())
+        self.btn.move(85, 75)
+        self.btn.resize(50, 30)
+        self.btn.clicked.connect(self.get_user_name)
+
+        self.line = QLineEdit(self)
+        self.line.resize(200, 25)
+        self.line.move(10, 40)
+
+    def get_user_name(self):
+        global user_name
+        user_name = self.line.text()
+        self.close()
+
+
+def add_player(user_name, result):
+    with sqlite3.connect('users_db.sqlite') as con:
+        cur = con.cursor()
+        cur.execute("""INSERT INTO users (   
+                                          name,
+                                          result
+                                          )
+                                           VALUES (?, ?)""", [user_name, result])
+        con.commit()
 
 
 def end_game(filename):
@@ -19,7 +64,9 @@ def end_game(filename):
                 pygame.quit()
         if sprite.rect.x < 0:
             sprite.rect.x += 200 / fps
-        all_sprites.draw(screen)
+            all_sprites.draw(screen)
+        else:
+            show_result()
         pygame.display.flip()
         clock.tick(fps)
 
@@ -96,6 +143,27 @@ def check_win(sec):
         return True
 
 
+def show_result():
+    with sqlite3.connect('users_db.sqlite') as con:
+        cur = con.cursor()
+        result = cur.execute(f"""SELECT name
+                                 FROM users
+                                 order by result DESC""").fetchall()
+        for i in range(len(result)):
+            if result[i][0] == user_name:
+                result = i + 1
+                break
+        font = pygame.font.Font(None, 50)
+        text = font.render(f"Ваш номер в списке результатов: {result}", True, (100, 255, 100))
+        text_x = width // 2 - text.get_width() // 2
+        text_y = height // 2 - text.get_height() // 2
+        text_w = text.get_width()
+        text_h = text.get_height()
+        screen.blit(text, (text_x, text_y))
+        pygame.draw.rect(screen, (0, 255, 0), (text_x - 10, text_y - 10,
+                                               text_w + 20, text_h + 20), 1)
+
+
 def print_time(sec):
     font = pygame.font.Font(None, 20)
     text = font.render('Осталось ', True, (255, 255, 255))
@@ -116,6 +184,11 @@ def print_time(sec):
 
 
 if __name__ == '__main__':
+    user_name = ''
+    app = QApplication(sys.argv)
+    ex = Example()
+    ex.show()
+    app.exec()
     pygame.init()
     time_to_live = 300
     tile_size = 30
@@ -158,7 +231,8 @@ if __name__ == '__main__':
     targets_group.draw(screen)
     last_spawn = datetime.datetime.now()
     pygame.display.flip()
-    while 1:
+    running = True
+    while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -179,6 +253,8 @@ if __name__ == '__main__':
         bullets_group.draw(screen)
         targets_group.update()
         targets_group.draw(screen)
+        sec = datetime.timedelta(milliseconds=pygame.time.get_ticks()).seconds
+        end = False
         for i in targets_group:
             if i.hp == 0:
                 exp_sound.play()
@@ -195,14 +271,15 @@ if __name__ == '__main__':
                         clock.tick(fps)
                         pygame.display.flip()
 
+                    add_player(user_name, sec)
                     end_game('gameover.png')
 
         explosion_group.update()
         explosion_group.draw(screen)
 
-        sec = datetime.timedelta(milliseconds=pygame.time.get_ticks()).seconds
         print_time(sec)
         if check_win(sec):
+            add_player(user_name, sec)
             end_game('win.jpeg')
 
         if datetime.datetime.now() - last_spawn > datetime.timedelta(seconds=5):
@@ -219,3 +296,4 @@ if __name__ == '__main__':
         clock.tick(fps)
         pygame.display.flip()
         screen.fill('black')
+
