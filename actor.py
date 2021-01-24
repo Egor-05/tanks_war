@@ -16,6 +16,7 @@ class Actor(pygame.sprite.Sprite):
         self.ind = ind
         self.vel = vel
         self.look_dir = (-1, 0)
+        self.prev_dir = self.look_dir
         self.targets = sprite_group
         self.bullet_group = bullet_group
         self.width = width
@@ -48,23 +49,41 @@ class Actor(pygame.sprite.Sprite):
         self.rotate_image()
         self.dir = (dir_x, dir_y)
         if self.dir != (0, 0):
+            self.prev_dir = self.look_dir
             self.look_dir = self.dir
         self.x += self.vel * dir_x
         self.y += self.vel * dir_y
         self.rect = self.image.get_rect().move(self.x, self.y)
 
     def rotate_image(self):
+        a = (self.look_dir[0] - self.prev_dir[0], self.look_dir[1] - self.prev_dir[1])
         rot = 0
-        if self.look_dir[0] == 1:
+        if a == (0, 0):
+            return
+        elif abs(a[0]) == 2 or abs(a[1]) == 2:
             rot = 180
-        elif self.look_dir[1] == 1:
+        elif (self.prev_dir == (0, -1) and self.look_dir == (-1, 0) or
+              self.prev_dir == (-1, 0) and self.look_dir == (0, 1) or
+              self.prev_dir == (0, 1) and self.look_dir == (1, 0) or
+              self.prev_dir == (1, 0) and self.look_dir == (0, -1)):
             rot = 90
-        elif self.look_dir[1] == -1:
-            rot = 270
+            self.prev_dir = self.look_dir
+        elif (self.prev_dir == (0, -1) and self.look_dir == (1, 0) or
+              self.prev_dir == (1, 0) and self.look_dir == (0, 1) or
+              self.prev_dir == (0, 1) and self.look_dir == (-1, 0) or
+              self.prev_dir == (-1, 0) and self.look_dir == (0, -1)):
+            rot = -90
+            self.prev_dir = self.look_dir
+        # if self.look_dir[0] == 1:
+        #     rot = 180
+        # elif self.look_dir[1] == 1:
+        #     rot = 90
+        # elif self.look_dir[1] == -1:
+        #     rot = 270
         self.rotate(rot)
 
     def rotate(self, angle):
-        self.image = pygame.transform.rotate(load_image(self.image_name), angle)
+        self.image = pygame.transform.rotate(self.image, angle)
         center = self.rect.center
         self.rect = self.image.get_rect()
         self.rect.center = center
