@@ -1,8 +1,9 @@
 import pygame
+from math import sin, cos
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y, dir_x, dir_y, width, height, walls, obj, targets):
+    def __init__(self, x, y, dir, width, height, walls, obj, targets):
         super().__init__()
         self.radius = 5
         self.image = pygame.Surface((2 * self.radius, 2 * self.radius),
@@ -12,7 +13,7 @@ class Bullet(pygame.sprite.Sprite):
         x -= self.radius
         y -= self.radius
         self.x, self.y = x, y
-        self.dir_x, self.dir_y = dir_x, dir_y
+        self.dir = dir
         self.rect = pygame.Rect(x, y, 2 * self.radius, 2 * self.radius)
         self.vel = 8
         self.obj = obj
@@ -22,9 +23,10 @@ class Bullet(pygame.sprite.Sprite):
         self.walls = walls
 
     def update(self):
-        self.x += self.vel * self.dir_x
-        self.y += self.vel * self.dir_y
-        self.rect = self.rect.move(self.vel * self.dir_x, self.vel * self.dir_y)
+        self.x += self.vel * cos(self.dir)
+        self.y += self.vel * sin(self.dir)
+        self.rect = self.rect.move(self.vel * cos(self.dir),
+                                   self.vel * sin(self.dir))
         for i in self.targets_group:
             if self.rect.colliderect(i) and i != self.obj:
                 i.hp -= 1

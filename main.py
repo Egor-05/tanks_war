@@ -8,6 +8,7 @@ import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton
 from PyQt5.QtWidgets import QLineEdit, QLabel
 import sqlite3
+from math import pi
 
 
 class Example(QWidget):
@@ -220,10 +221,10 @@ if __name__ == '__main__':
     player, walls_group = generate_level(level_map)
     targets_group.add(player)
 
-    KEYS_DEFS = {pygame.K_LEFT: (-1, 0),
-                 pygame.K_RIGHT: (1, 0),
-                 pygame.K_UP: (0, -1),
-                 pygame.K_DOWN: (0, 1)
+    KEYS_DEFS = {pygame.K_LEFT: pi,
+                 pygame.K_RIGHT: 0,
+                 pygame.K_UP: -pi / 2,
+                 pygame.K_DOWN: pi / 2
                  }
 
     start_screen()
@@ -240,10 +241,11 @@ if __name__ == '__main__':
                 if event.key == pygame.K_SPACE:
                     player.shoot()
                 elif event.key in KEYS_DEFS.keys():
+                    player.cur_vel = 1
                     player.dir = KEYS_DEFS[event.key]
             elif event.type == pygame.KEYUP:
                 if event.key in KEYS_DEFS.keys():
-                    player.dir = (0, 0)
+                    player.cur_vel = 0
         for i in range(player.hp):
             hp = pygame.image.load('data/hp.png')
             hp_rect = hp.get_rect().move(width - ind + 40 * i + 20, 10)
